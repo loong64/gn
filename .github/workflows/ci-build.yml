@@ -1,7 +1,12 @@
-name: build
+name: ci-build
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: false
+        default: ''
   schedule:
     - cron: '0 20 * * *'
 
@@ -18,7 +23,11 @@ jobs:
       - name: Check Version
         id: get-version
         run: |
-          version=$(curl -s 'https://api.github.com/repos/timniederhausen/gn/releases/latest' | jq -r ".tag_name")
+          if [ -n "${{ inputs.version }}" ]; then
+            version="${{ inputs.version }}"
+          else
+            version=$(curl -s 'https://api.github.com/repos/timniederhausen/gn/releases/latest' | jq -r ".tag_name")
+          fi
           echo "Current Version: ${version}"
           if [ -z "${version}" ] || [ "${version}" == "null" ]; then
             echo "Failed to get version"
@@ -47,10 +56,6 @@ jobs:
           echo "Current Version: ${version}"
 
       - uses: actions/checkout@v4
-        with:
-          repository: timniederhausen/gn
-          ref: ${{ env.version }}
-
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 

@@ -20,12 +20,11 @@ RUN set -ex \
 
 ARG VERSION
 
-ARG WORKDIR="/opt/gn"
-
 RUN set -ex \
-    && git clone --depth 1 --branch $VERSION https://github.com/timniederhausen/gn.git $WORKDIR
+    && git clone -b ${VERSION} https://github.com/timniederhausen/gn.git /opt/gn
 
-WORKDIR $WORKDIR
+WORKDIR /opt/gn
+
 RUN set -ex \
     && python3 build/gen.py \
     && ninja -C out \
