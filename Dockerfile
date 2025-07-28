@@ -29,14 +29,14 @@ RUN set -ex \
     && python3 build/gen.py \
     && ninja -C out \
     && out/gn_unittests \
-    && tar -C out -czf "out/gn-loong64.tar.gz" gn \
-    && cp -f out/gn-loong64.tar.gz out/gn-loongarch64.tar.gz
+    && tar -C out -czf "out/gn-linux-loong64.tar.gz" gn \
+    && cp -f out/gn-linux-loong64.tar.gz out/gn-linux-loongarch64.tar.gz
 
 FROM ghcr.io/loong64/anolis:23
 
 WORKDIR /opt/gn
 
-COPY --from=builder /opt/gn/out/gn-loong64.tar.gz /opt/gn/dist/
+COPY --from=builder /opt/gn/out/gn-*.tar.gz /opt/gn/dist/
 
 VOLUME /dist
 
