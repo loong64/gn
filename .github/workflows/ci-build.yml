@@ -1,0 +1,73 @@
+name: build
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 20 * * *'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      build: ${{ steps.check-build.outputs.build }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Version
+        id: get-version
+        run: |
+          version=$(curl -s 'https://api.github.com/repos/timniederhausen/gn/releases/latest' | jq -r ".tag_name")
+          echo "Current Version: ${version}"
+          if [ -z "${version}" ] || [ "${version}" == "null" ]; then
+            echo "Failed to get version"
+            exit 1
+          fi
+          echo "version=${version}" >> $GITHUB_ENV
+          echo "version=${version}" >> $GITHUB_OUTPUT
+
+      - name: Check Build
+        id: check-build
+        run: |
+          gh release view ${version} -R ${{ github.repository }} | grep gn-linux-loong64.tar.gz >/dev/null 2>&1 || echo "build=1" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    needs: check
+    runs-on: ubuntu-latest
+    if: needs.check.outputs.build == 1
+    env:
+      version: ${{ needs.check.outputs.version }}
+    steps:
+      - name: Check Version
+        id: get-version
+        run: |
+          echo "Current Version: ${version}"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: timniederhausen/gn
+          ref: ${{ env.version }}
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build Binaries
+        run: |
+          docker buildx build --platform linux/loong64 --build-arg VERSION=${{ env.version }} -t gn-static-loong64:${{ env.version }} . --load
+
+      - name: Check Binaries
+        run: |
+          docker run --rm -v $(pwd)/dist:/dist gn-static-loong64:${{ env.version }}
+          ls -al dist
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ env.version }}
+          tag_name: ${{ env.version }}
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
