@@ -1,19 +1,22 @@
-FROM ghcr.io/loong64/anolis:23 AS builder
-
-ARG DEPENDENCIES=" \
-        git \
-        clang \
-        wget \
-        unzip \
-        libstdc++-static"
+ARG BASE_IMAGE=ghcr.io/loong64/anolis:23
+FROM ${BASE_IMAGE} AS builder
+ARG TARGETARCH
 
 RUN set -ex \
-    && dnf install -y $DEPENDENCIES \
+    && dnf -y install dnf-plugins-core \
+    && if [ "${TARGETARCH}" = "loong64" ]; then \
+        dnf config-manager --set-enabled crb; \
+        dnf install -y python3.10; \
+    else \
+        dnf config-manager --set-enabled powertools; \
+        dnf install -y python3.9; \
+    fi \
+    && dnf install -y clang git unzip wget libstdc++-static \
     && dnf clean all
 
 RUN set -ex \
     && cd /tmp \
-    && wget --no-check-certificate --quiet -O ninja.zip https://github.com/loong64/ninja/releases/download/v1.12.1/ninja-linux-loongarch64.zip \
+    && wget --no-check-certificate --quiet -O ninja.zip https://github.com/loong64/ninja/releases/download/v1.12.1/ninja-linux-$(uname -m).zip \
     && unzip ninja.zip -d /usr/local/bin/ \
     && chmod +x /usr/local/bin/ninja \
     && rm -f ninja.zip
@@ -28,16 +31,13 @@ WORKDIR /opt/gn
 RUN set -ex \
     && python3 build/gen.py \
     && ninja -C out \
-    && out/gn_unittests \
-    && tar -C out -czf "out/gn-linux-loong64.tar.gz" gn \
-    && cp -f out/gn-linux-loong64.tar.gz out/gn-linux-loongarch64.tar.gz
+    && out/gn_unittests
 
-FROM ghcr.io/loong64/anolis:23
+FROM ${BASE_IMAGE}
+ARG TARGETARCH
 
-WORKDIR /opt/gn
-
-COPY --from=builder /opt/gn/out/gn-*.tar.gz /opt/gn/dist/
+COPY --from=builder /opt/gn/out/gn /opt/dist/gn
 
 VOLUME /dist
 
-CMD cp -rf dist/* /dist/
+CMD cp -rf /opt/dist/gn /dist/
