@@ -64,6 +64,10 @@ jobs:
           - arch: ppc64le
             platform: ppc64le
             runner: ubuntu-24.04
+          - arch: riscv64
+            platform: riscv64
+            runner: ubuntu-24.04
+
     steps:
       - name: Get Version
         run: |
@@ -76,9 +80,12 @@ jobs:
       - name: Build Binaries
         run: |
           BASE_IMAGE='quay.io/almalinuxorg/almalinux:8'
-          if [ "${{ matrix.platform }}" = "loongarch64" ]; then
-            BASE_IMAGE='ghcr.io/loong64/anolis:23'
-          fi
+          case "${{ matrix.platform }}" in
+            loongarch64|riscv64)
+              BASE_IMAGE='ghcr.io/loong64/anolis:23'
+              ;;
+          esac
+
           docker buildx build \
             --platform linux/${{ matrix.arch }} \
             --build-arg BASE_IMAGE=${BASE_IMAGE} \

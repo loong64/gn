@@ -4,13 +4,16 @@ ARG TARGETARCH
 
 RUN set -ex \
     && dnf -y install dnf-plugins-core \
-    && if [ "${TARGETARCH}" = "loong64" ]; then \
-        dnf config-manager --set-enabled crb; \
-        dnf install -y python3.10; \
-    else \
-        dnf config-manager --set-enabled powertools; \
-        dnf install -y python3.9; \
-    fi \
+    && \
+    case "${TARGETARCH}" in \
+        loong64|riscv64) \
+            dnf install -y python3; \
+            ;; \
+        *) \
+            dnf config-manager --set-enabled powertools; \
+            dnf install -y python3.9; \
+            ;; \
+    esac \
     && dnf install -y clang git unzip wget libstdc++-static \
     && dnf clean all
 
